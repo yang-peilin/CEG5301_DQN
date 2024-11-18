@@ -1,3 +1,5 @@
+# 这份代码实现了一个并行环境管理器，用于在多进程中运行多个 Gym 环境。
+
 import numpy as np
 from abc import ABC, abstractmethod
 from multiprocessing import Process, Pipe

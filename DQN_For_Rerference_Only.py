@@ -80,6 +80,7 @@ class ConvNet(nn.Module):
         
         self.feature_extraction = nn.Sequential(
         	# Conv2d(Input channels, Output channels, kernel_size, stride)
+            # 输入通道数为STATE_LEN，即输入状态的帧数
             nn.Conv2d(STATE_LEN, 32, kernel_size=8, stride=4),
             nn.ReLU(),
             nn.Conv2d(32, 64, kernel_size=4, stride=2),
@@ -92,14 +93,18 @@ class ConvNet(nn.Module):
         # action value
         self.fc_q = nn.Linear(512, N_ACTIONS) 
         
-        # Initialization    
+        # Initialization
+        # 初始化卷积神经网络（CNN）中的各层参数
         for m in self.modules():
             if isinstance(m, nn.Conv2d):
                 # nn.init.orthogonal_(m.weight, gain = np.sqrt(2))
+                # 使用Xavier正态分布（Xavier Normal Initialization）来初始化卷积层的权重
+                # Xavier 初始化是为了保持每一层的输入和输出方差一致
                 nn.init.xavier_normal_(m.weight)
                 if m.bias is not None:
                     nn.init.constant_(m.bias, 0.0)
             elif isinstance(m, nn.Linear):
+                # 使用 Kaiming 正态初始化（Kaiming Normal Initialization）来初始化全连接层的权重
                 nn.init.kaiming_normal_(m.weight)
                 if m.bias is not None:
                     nn.init.constant_(m.bias, 0.0)
@@ -112,6 +117,7 @@ class ConvNet(nn.Module):
         x = F.relu(self.fc(x))                 
         action_value = self.fc_q(x)
 
+        # 输出每个动作的Q值
         return action_value
 
 
@@ -125,6 +131,7 @@ class DQN(object):
     def __init__(self):
         self.pred_net, self.target_net = ConvNet(), ConvNet()
         # sync evac target
+        # 更新目标网络（target_net），确保它和预测网络（pred_net）之间的参数保持一致或者部分一致
         self.update_target(self.target_net, self.pred_net, 1.0)
         # use gpu
         if USE_GPU:
@@ -132,17 +139,21 @@ class DQN(object):
             self.target_net.cuda()
             
         # simulator step counter
+        # 通常用于记录在训练过程中经历的步骤数
         self.memory_counter = 0
         # target network step counter
+        # 跟踪目标网络（targetnetwork）更新的步数（也就是训练中调用 learn() 方法的次数）
         self.learn_step_counter = 0
         # loss function
         self.loss_function = nn.MSELoss()
         # ceate the replay buffer
+        # 创建一个经验回放缓冲区（ReplayBuffer），用于存储智能体与环境交互的经验，并在后续训练中通过采样这些经验来更新神经网络的参数
         self.replay_buffer = ReplayBuffer(MEMORY_CAPACITY)
         
         # define optimizer
         self.optimizer = torch.optim.Adam(self.pred_net.parameters(), lr=LR)
-        
+
+    # 将预测网络（predictionnetwork）的参数部分或全部复制到目标网络（targetnetwork）中
     def update_target(self, target, pred, update_rate):
         # update target network parameters using predcition network
         for target_param, pred_param in zip(target.parameters(), pred.parameters()):
@@ -176,6 +187,8 @@ class DQN(object):
             action = np.random.randint(0, N_ACTIONS, (x.size(0)))
         return action
 
+    # 用于将智能体与环境的交互经历（即“状态 - 动作 - 奖励 - 下一状态”）
+    # 存储到经验回放缓冲区（Replay Buffer）
     def store_transition(self, s, a, r, s_, done):
         self.memory_counter += 1
         self.replay_buffer.add(s, a, r, s_, float(done))
@@ -183,9 +196,11 @@ class DQN(object):
     def learn(self):
         self.learn_step_counter += 1
         # target parameter update
+        # 在一定的学习步骤后，将预测网络的参数更新到目标网络中
         if self.learn_step_counter % TARGET_REPLACE_ITER == 0:
             self.update_target(self.target_net, self.pred_net, 1e-2)
-    
+
+        # 从经验回放缓冲区（Replay Buffer）中抽取一个批次（mini - batch）的经验样本
         b_s, b_a, b_r, b_s_, b_d = self.replay_buffer.sample(BATCH_SIZE)
         # b_w, b_idxes = np.ones_like(b_r), None
             
@@ -198,17 +213,24 @@ class DQN(object):
         if USE_GPU:
             b_s, b_a, b_r, b_s_, b_d = b_s.cuda(), b_a.cuda(), b_r.cuda(), b_s_.cuda(), b_d.cuda()
 
-        # action value for current state 
-        q_eval = self.pred_net(b_s) 	
+        # action value for current state
+        # 通过 预测网络（prediction network）计算所有动作的 Q 值
+        q_eval = self.pred_net(b_s)
+        # 获取批次的大小
         mb_size = q_eval.size(0)
+        # 选择每个样本对应的特定动作的Q值
         q_eval = torch.stack([q_eval[i][b_a[i]] for i in range(mb_size)])
 
-        # optimal action value for current state 
+        # optimal action value for current state
+        # 计算每个样本的目标Q值（q_target），用于更新深度Q网络（DQN）的预测网络参数
         q_next = self.target_net(b_s_) 				
         # best_actions = q_next.argmax(dim=1) 		
         # q_next = torch.stack([q_next[i][best_actions[i]] for i in range(mb_size)])
+        # 获取每个下一状态的最大Q值
         q_next = torch.max(q_next, -1)[0]
+        # 计算目标Q值
         q_target = b_r + GAMMA * (1. - b_d) * q_next
+        # 从计算图中分离目标Q值
         q_target = q_target.detach()
 
         # loss
@@ -245,6 +267,7 @@ s = np.array(env.reset())
 # print(s.shape)
 
 # for step in tqdm(range(1, STEP_NUM//N_ENVS+1)):
+# STEP_NUM：通常表示总的训练步数
 for step in range(1, STEP_NUM//N_ENVS+1):
     a = dqn.choose_action(s, EPSILON)
     # print('a',a)

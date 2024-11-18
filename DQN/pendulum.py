@@ -1,3 +1,6 @@
+# 这份代码实现了一个经典的倒立摆（Pendulum）控制问题的环境。
+# 它模拟了物理系统中的摆，允许在其上施加扭矩（控制力），以使其保持直立稳定。
+
 __credits__ = ["Carlos Luis"]
 
 from os import path
