@@ -24,8 +24,8 @@ from gym.wrappers.monitoring.video_recorder import VideoRecorder
 
 
 parser = argparse.ArgumentParser(description='Some settings of the experiment.')
-parser.add_argument('--game', type=str, nargs=1, 
-                    default='Pendulum', 
+parser.add_argument('--game', type=str, nargs=1,
+                    default='Pendulum',
                     help='name of the games. for example: Breakout'
                     )
 
@@ -35,11 +35,11 @@ args = parser.parse_args()
 args.games = "".join(args.game)
 
 # the discrete action space
-disc_actions = [np.array(-2, dtype=np.float32), 
+disc_actions = [np.array(-2, dtype=np.float32),
                 np.array(-1.5, dtype=np.float32),
                 np.array(-1, dtype=np.float32),
                 np.array(-0.5, dtype=np.float32),
-                np.array(0, dtype=np.float32), 
+                np.array(0, dtype=np.float32),
                 np.array(0.5, dtype=np.float32),
                 np.array(1, dtype=np.float32),
                 np.array(1.5, dtype=np.float32),
@@ -96,7 +96,7 @@ def main():
         os.makedirs(os.path.dirname(TARGET_PATH))
     if not os.path.exists(os.path.dirname(BUFFER_PATH)):
         os.makedirs(os.path.dirname(BUFFER_PATH))
-    
+
     # define agent
     dqn = DQN()
 
@@ -110,7 +110,7 @@ def main():
     else:
         result = []
         print('Initialize results!')
-        
+
     # offline data load with check
     if BUFFER_LOAD and os.path.isfile(BUFFER_PATH):
         dqn.load_buffer(BUFFER_PATH)
@@ -132,7 +132,7 @@ def main():
         # When loading data from a file, don't need to sample from env.
         if not BUFFER_LOAD:
             a = dqn.choose_action(s, EPSILON, IDLING)
-            
+
             # take action and get next state
             # s_, r, done, infos, _ = env.step(a)
             s_, r, done, infos, _ = env.step(a)
@@ -181,7 +181,7 @@ def main():
             pkl_file.close()
             # Render
             # Once the performance is good enough (>-200), deploy the learned greedy policy
-            if mean_100_ep_return >= -1600:  # Here the sample code sets it to -1600, just to show the animation.
+            if mean_100_ep_return >= -600:  # Here the sample code sets it to -1600, just to show the animation.
                 # Re-simulate to show the animation
                 evaluate_performance(dqn, disc_actions, episode_length=EPISODE_LENGTH)
                 # re-simulate to save the video
@@ -193,11 +193,11 @@ def main():
             s = list(s_)
             if RENDERING:
                 env.render()
-                
+
     if not BUFFER_LOAD:
         dqn.save_buffer(BUFFER_PATH)
     print("The training is done!")
-    
+
 def evaluate_performance(agent, disc_actions, render_mode="human", episode_length=200, test_num=1):
     # create env
     global args
@@ -210,7 +210,7 @@ def evaluate_performance(agent, disc_actions, render_mode="human", episode_lengt
         s = [s]
         # render
         env.render()
-        
+
         for step in range(episode_length):
             a = agent.choose_action(s, 0.0, idling=False)
             s_, r, done, infos, _ = env.step(a[0])
