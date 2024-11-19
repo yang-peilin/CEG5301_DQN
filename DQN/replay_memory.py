@@ -220,7 +220,7 @@ class ReplayBufferImage(ReplayBuffer):
             obs_t, action, reward, obs_tp1, done = data
             obses_i.append(np.array(obs_t[0], copy=False))
             obses_s.append(np.array(obs_t[1], copy=False))
-            actions.append(np.array(action, copy=False))
+            actions.append(np.asarray(action))
             rewards.append(reward)
             obses_p_i.append(np.array(obs_tp1[0], copy=False))
             obses_p_s.append(np.array(obs_tp1[1], copy=False))
