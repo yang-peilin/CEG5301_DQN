@@ -22,7 +22,6 @@ from parallel import SubprocVecEnv
 from pendulum import PendulumEnv
 from gym.wrappers.monitoring.video_recorder import VideoRecorder
 
-
 parser = argparse.ArgumentParser(description='Some settings of the experiment.')
 parser.add_argument('--game', type=str, nargs=1,
                     default='Pendulum',
@@ -45,8 +44,9 @@ disc_actions = [np.array(-2, dtype=np.float32),
                 np.array(1.5, dtype=np.float32),
                 np.array(2, dtype=np.float32)]
 
+
 def main():
-    '''Environment Settings'''
+    """Environment Settings"""
     # number of environments for C51
     N_ENVS = 1
     # Total simulation step
@@ -83,10 +83,10 @@ def main():
     SAVE_FREQ = int(1e+3) // N_ENVS
     # paths for prediction net, target net, result log
     current_path = os.path.dirname(os.path.realpath("__file__"))
-    PRED_PATH = os.path.join(current_path, 'data/model/dqn_pred_net_o_'+args.games+'.pkl')
-    TARGET_PATH = os.path.join(current_path, 'data/model/dqn_target_net_o_'+args.games+'.pkl')
-    RESULT_PATH = os.path.join(current_path, 'data/plots/dqn_result_o_'+args.games+'.pkl')
-    BUFFER_PATH = os.path.join(current_path, 'data/replay_buffer/dqn_buffer_'+args.games+'.pkl')
+    PRED_PATH = os.path.join(current_path, 'data/model/dqn_pred_net_o_' + args.games + '.pkl')
+    TARGET_PATH = os.path.join(current_path, 'data/model/dqn_target_net_o_' + args.games + '.pkl')
+    RESULT_PATH = os.path.join(current_path, 'data/plots/dqn_result_o_' + args.games + '.pkl')
+    BUFFER_PATH = os.path.join(current_path, 'data/replay_buffer/dqn_buffer_' + args.games + '.pkl')
     # create directory
     if not os.path.exists(os.path.dirname(RESULT_PATH)):
         os.makedirs(os.path.dirname(RESULT_PATH))
@@ -103,7 +103,7 @@ def main():
     # model load with check
     if LOAD and os.path.isfile(PRED_PATH) and os.path.isfile(TARGET_PATH):
         dqn.load_model(PRED_PATH, TARGET_PATH)
-        pkl_file = open(RESULT_PATH,'rb')
+        pkl_file = open(RESULT_PATH, 'rb')
         result = pickle.load(pkl_file)
         pkl_file.close()
         print('Load complete!')
@@ -125,7 +125,15 @@ def main():
 
     # env reset
     s = env.reset()
-    # print(s.shape)
+    # print("Type of s[0]:", type(s[0]))
+    # print("Length of s[0]:", len(s[0]))
+
+    # s[0][0], with a shape of (4, 42, 42)
+    # represents 4 consecutive frames of images, each with a resolution of 42x42 pixels.
+    # image_data = s[0][0]
+    # state_data = s[0][1]
+    # print("Shape of image_data:", np.array(image_data).shape)  # 打印图像数据的形状
+    # print("Shape of state_data:", np.array(state_data).shape)  # 打印状态数据的形状
 
     # for step in tqdm(range(1, STEP_NUM//N_ENVS+1)):
     for step in range(1, STEP_NUM // N_ENVS + 1):
@@ -151,14 +159,15 @@ def main():
         if step <= int(5e+4 / N_ENVS):
             # linear annealing to 0.9 until million step
             EPSILON -= 0.9 / 5e+4 * N_ENVS
-        elif step <= int(1.5e+5 / N_ENVS) and step > 5e+4:
-        # else:
+        elif int(1.5e+5 / N_ENVS) >= step > 5e+4:
+            # else:
             # linear annealing to 0.99 until the end
             EPSILON -= 0.099 / 1e+5 * N_ENVS
 
         # if memory fill 50K and mod 4 = 0(for speed issue), learn pred net
         if (not IDLING) and (LEARN_START <= dqn.memory_counter) and (dqn.memory_counter % LEARN_FREQ == 0):
             loss = dqn.learn()
+            # print(f"Step {step}, Loss: {loss}")
 
         # print log and save
         if step % SAVE_FREQ == 0:
@@ -168,11 +177,11 @@ def main():
             mean_100_ep_return = round(np.mean([epinfo['r'] for epinfo in epinfobuf]), 2)
             result.append(mean_100_ep_return)
             # print log
-            print('Used Step: ',dqn.memory_counter,
-                '| EPS: ', round(EPSILON, 3),
-                # '| Loss: ', loss,
-                '| Mean ep 100 return: ', mean_100_ep_return,
-                '| Used Time:',time_interval)
+            print('Used Step: ', dqn.memory_counter,
+                  '| EPS: ', round(EPSILON, 3),
+                  # '| Loss: ', loss,
+                  '| Mean ep 100 return: ', mean_100_ep_return,
+                  '| Used Time:', time_interval)
             # save model
             dqn.save_model(PRED_PATH, TARGET_PATH)
             # save the mean_100_ep_return (the average return over the last 100 episodes) to the binary file
@@ -181,7 +190,7 @@ def main():
             pkl_file.close()
             # Render
             # Once the performance is good enough (>-200), deploy the learned greedy policy
-            if mean_100_ep_return >= -600:  # Here the sample code sets it to -1600, just to show the animation.
+            if mean_100_ep_return >= -200:  # Here the sample code sets it to -1600, just to show the animation.
                 # Re-simulate to show the animation
                 evaluate_performance(dqn, disc_actions, episode_length=EPISODE_LENGTH)
                 # re-simulate to save the video
@@ -198,13 +207,14 @@ def main():
         dqn.save_buffer(BUFFER_PATH)
     print("The training is done!")
 
+
 def evaluate_performance(agent, disc_actions, render_mode="human", episode_length=200, test_num=1):
     # create env
     global args
     game = args.game
     env = wrap_cover_pendulun_test(game, disc_actions, render_mode, episode_length)()
 
-    for _ in range(test_num): # Play the game test_num times
+    for _ in range(test_num):  # Play the game test_num times
         # initialize the env
         s, _ = env.reset()
         s = [s]
@@ -218,6 +228,7 @@ def evaluate_performance(agent, disc_actions, render_mode="human", episode_lengt
             env.render()
 
     env.close()
+
 
 def save_animation(agent, disc_actions, render_mode="rgb_array", frames_length=200):
     # create env
@@ -245,6 +256,6 @@ def save_animation(agent, disc_actions, render_mode="rgb_array", frames_length=2
     after_video.close()
     env.close()
 
+
 if __name__ == '__main__':
     main()
-

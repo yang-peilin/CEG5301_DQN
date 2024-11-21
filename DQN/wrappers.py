@@ -18,11 +18,14 @@ class CloudpickleWrapper(object):
     """
     Uses cloudpickle to serialize contents (otherwise multiprocessing tries to use pickle)
     """
+
     def __init__(self, x):
         self.x = x
+
     def __getstate__(self):
         import cloudpickle
         return cloudpickle.dumps(self.x)
+
     def __setstate__(self, ob):
         import pickle
         self.x = pickle.loads(ob)
@@ -39,7 +42,7 @@ class DiscreteActions(gym.ActionWrapper):
         super().__init__(env)
         self.disc_actions = disc_actions
         self._action_space = spaces.Discrete(len(disc_actions))
-    
+
     def action(self, act):
         return self.disc_actions[act]
 
@@ -82,8 +85,8 @@ class EpisodicLifeEnv(gym.Wrapper):
             self.was_real_reset = False
         self.lives = self.env.unwrapped.ale.lives()
         return obs
-    
-    
+
+
 class EpisodicPendulumEnv(gym.Wrapper):
     def __init__(self, env=None, episode_length=200):
         """
@@ -151,8 +154,8 @@ class NoopResetEnv(gym.Wrapper):
             if done:
                 obs = self.env.reset()
         return obs
-   
-    
+
+
 class MaxAndSkipEnv(gym.Wrapper):
     def __init__(self, env=None, skip=4):
         """Return only every `skip`-th frame"""
@@ -199,26 +202,26 @@ class FireResetEnv(gym.Wrapper):
         if done:
             self.env.reset()
         return obs
-    
-    
+
+
 class GenerateFrame42(gym.ObservationWrapper):
     def __init__(self, env=None):
         super(GenerateFrame42, self).__init__(env)
         self.screen_dim = 42
         self.observation_space = spaces.Box(low=0, high=255, shape=(self.screen_dim, self.screen_dim, 1))
-        
+
         pygame.init()
-        
+
     def observation(self, obs):
         im = self.get_image_data()
-        return obs 
-    
+        return obs
+
     def get_image_data(self):
         self.screen = pygame.Surface((self.screen_dim, self.screen_dim))
-        
+
         self.surf = pygame.Surface((self.screen_dim, self.screen_dim))
         self.surf.fill((255, 255, 255))
-        
+
         bound = 2.2
         scale = self.screen_dim / (bound * 2)
         offset = self.screen_dim // 2
@@ -256,18 +259,18 @@ class GenerateFrame42(gym.ObservationWrapper):
 
         self.surf = pygame.transform.flip(self.surf, False, True)
         self.screen.blit(self.surf, (0, 0))
-        
+
         return np.transpose(
             np.array(pygame.surfarray.pixels3d(self.screen)), axes=(1, 0, 2)
         )
-    
+
     def _get_obs(self):
         return [self.get_image_data(), self.unwrapped._get_obs()]
-    
+
     def reset(self):
         self.env.reset()
         return self._get_obs(), {}
-    
+
     def step(self, u):
         obs, costs, done, info, _ = self.env.step(u)
         return self._get_obs(), costs, done, info, _
@@ -300,6 +303,7 @@ class ImageToPyTorch(gym.ObservationWrapper):
     """
     Change image shape to CWH
     """
+
     def __init__(self, env):
         super(ImageToPyTorch, self).__init__(env)
         old_shape = self.observation_space.shape
@@ -325,8 +329,8 @@ class LazyFrames(object):
         if dtype is not None:
             out = out.astype(dtype)
         return out
-    
-    
+
+
 class LazyArraies(object):
     def __init__(self, states):
         """This object ensures that common frames between the observations are only stored once.
@@ -343,6 +347,7 @@ class LazyArraies(object):
         return out
 
 
+# Stack the images and states of the most recent k frames
 class FrameStack(gym.Wrapper):
     def __init__(self, env, k):
         """Stack k last frames.
@@ -357,7 +362,7 @@ class FrameStack(gym.Wrapper):
         self.frames = deque([], maxlen=k)
         self.states = deque([], maxlen=k)
         shp = env.observation_space.shape
-        self.observation_space = spaces.Box(low=0, high=255, shape=(shp[0]*k, shp[1], shp[2]))
+        self.observation_space = spaces.Box(low=0, high=255, shape=(shp[0] * k, shp[1], shp[2]))
 
     def reset(self):
         # reset to random initial states
@@ -393,6 +398,7 @@ def wrap(env):
     env = FrameStack(env, 4)
     return env
 
+
 def wrap_cover(env_name):
     def wrap_():
         """Apply a common set of wrappers for Atari games."""
@@ -410,8 +416,11 @@ def wrap_cover(env_name):
         env = FrameStack(env, 4)
         env = ClippedRewardsWrapper(env)
         return env
+
     return wrap_
 
+
+# 将一个倒立摆环境封装为强化学习算法可直接使用的图像输入环境
 def wrap_cover_pendulun(env_name, disc_actions, render_mode=None, episode_length=200):
     def wrap_():
         """Apply a common set of wrappers for Atari games."""
@@ -425,7 +434,9 @@ def wrap_cover_pendulun(env_name, disc_actions, render_mode=None, episode_length
         env = DiscreteActions(env, disc_actions)
         env = Monitor(env, './')
         return env
+
     return wrap_
+
 
 def wrap_cover_pendulun_test(env_name, disc_actions, render_mode=None, episode_length=200):
     def wrap_():
@@ -439,4 +450,5 @@ def wrap_cover_pendulun_test(env_name, disc_actions, render_mode=None, episode_l
         env = FrameStack(env, 4)
         env = DiscreteActions(env, disc_actions)
         return env
+
     return wrap_
